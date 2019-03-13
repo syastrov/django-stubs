@@ -235,6 +235,10 @@ def get_fields_metadata(model: TypeInfo) -> Dict[str, typing.Any]:
     return get_django_metadata(model).setdefault('fields', {})
 
 
+def get_lookups_metadata(model: TypeInfo) -> Dict[str, typing.Any]:
+    return get_django_metadata(model).setdefault('lookups', {})
+
+
 def extract_explicit_set_type_of_model_primary_key(model: TypeInfo) -> Optional[Type]:
     """
     If field with primary_key=True is set on the model, extract its __set__ type.

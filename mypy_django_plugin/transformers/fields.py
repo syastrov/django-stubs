@@ -160,6 +160,8 @@ def record_field_properties_into_outer_model_class(ctx: FunctionContext) -> None
         return
 
     fields_metadata = outer_model.metadata.setdefault('django', {}).setdefault('fields', {})
+    lookups_metadata = helpers.get_lookups_metadata(outer_model)
+    lookups_metadata[field_name] = {'is_field': True}
 
     # primary key
     is_primary_key = False
