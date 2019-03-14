@@ -211,7 +211,7 @@ def extract_field_setter_type(tp: Instance) -> Optional[Type]:
     return None
 
 
-def extract_field_getter_type(tp: Instance) -> Optional[Type]:
+def extract_field_getter_type(tp: Type) -> Optional[Type]:
     if not isinstance(tp, Instance):
         return None
     if tp.type.has_base(FIELD_FULLNAME):

@@ -4,7 +4,7 @@ import os
 from typing import Callable, Dict, Optional, Union, cast
 
 from mypy.checker import TypeChecker
-from mypy.nodes import MemberExpr, NameExpr, TypeInfo, StrExpr
+from mypy.nodes import MemberExpr, NameExpr, TypeInfo
 from mypy.options import Options
 from mypy.plugin import (
     AttributeContext, ClassDefContext, FunctionContext, MethodContext, Plugin,
@@ -23,6 +23,7 @@ from mypy_django_plugin.transformers.migrations import (
     determine_model_cls_from_string_for_migrations, get_string_value_from_expr,
 )
 from mypy_django_plugin.transformers.models import process_model_class
+from mypy_django_plugin.transformers.queryset import extract_proper_type_for_values_list
 from mypy_django_plugin.transformers.settings import (
     AddSettingValuesToDjangoConfObject, get_settings_metadata,
 )
@@ -227,126 +228,6 @@ def extract_proper_type_for_get_form(ctx: MethodContext) -> Type:
         return form_class_type.ret_type
 
     return ctx.default_return_type
-
-
-def extract_proper_type_for_values_list(ctx: MethodContext) -> Type:
-    object_type = ctx.type
-    if not isinstance(object_type, Instance):
-        return ctx.default_return_type
-
-    flat = helpers.parse_bool(helpers.get_argument_by_name(ctx, 'flat'))
-    named = helpers.parse_bool(helpers.get_argument_by_name(ctx, 'named'))
-
-    ret = ctx.default_return_type
-
-    any_type = AnyType(TypeOfAny.implementation_artifact)
-    fields_arg_expr = ctx.args[ctx.callee_arg_names.index('fields')]
-
-    model_arg: Union[AnyType, Type] = ret.args[0] if len(ret.args) > 0 else any_type
-
-    # TODO: Base on config setting
-    use_strict_types = True
-
-    if model_arg == any_type:
-        # Don't know the model, so can't use strict types
-        use_strict_types = False
-
-    field_names = []
-    field_types = {}
-    if use_strict_types:
-        for field_expr in fields_arg_expr:
-            if not isinstance(field_expr, StrExpr):
-                use_strict_types = False
-                break
-            field_names.append(field_expr.value)
-        for field_name in field_names:
-            if isinstance(model_arg, Instance):
-                model_type_info = model_arg.type
-                lookups_metadata = helpers.get_lookups_metadata(model_type_info)
-                lookup_metadata = lookups_metadata.get(field_name)
-                if lookup_metadata is None:
-                    ctx.api.fail(
-                        f'"{field_name}" is not a valid lookup on model {model_type_info.name()}',
-                        ctx.context)
-                    use_strict_types = False
-                    continue
-
-                if lookup_metadata.get('is_field', False):
-                    field_node = model_type_info.get(field_name)
-                    if not field_node:
-                        ctx.api.fail(
-                            f'Field "{field_name}" was not found in model {model_type_info.name()}',
-                            ctx.context)
-                        use_strict_types = False
-                        continue
-                    field_node_type = field_node.type
-
-                    field_getter_type = helpers.extract_field_getter_type(field_node_type)
-                    if not field_getter_type:
-                        ctx.api.fail(
-                            f'Could not determine field type for {model_type_info.name()}.{field_name} in call to values_list.',
-                            ctx.context)
-                        use_strict_types = False
-                        continue
-                    field_types[field_name] = field_getter_type
-                else:
-                    # Not a field, just use the type on the model
-                    # TODO: This is really a special case for id/related_id fields
-                    field_node = model_type_info.get(field_name)
-                    if not field_node:
-                        ctx.api.fail(
-                            f'Field "{field_name}" was not found in model {model_type_info.name()}',
-                            ctx.context)
-                        use_strict_types = False
-                        continue
-
-                    field_node_type = field_node.type
-                    is_related_manager = False
-
-                    # TODO: Make this a function
-                    for i, base in enumerate(field_node_type.bases):
-                        if base.type.fullname() == helpers.RELATED_MANAGER_CLASS_FULLNAME:
-                            is_related_manager = True
-                            field_node_type = base.type
-                            break
-
-                    field_types[field_name] = field_node_type
-                    # print(field_name, field_getter_type)
-                # print("model_arg", model_type_info)
-                # field_metadata = helpers.get_fields_metadata(model_type_info)
-                # print("field_metadata", field_metadata)
-                # if field_name not in field_metadata:
-                #     ctx.api.fail(
-                #         f'Field "{field_name}" passed to values_list was not found in model {model_type_info.name()}',
-                #         ctx.context)
-        # fields.extract_referred_to_type()
-
-    if named and flat:
-        ctx.api.fail("'flat' and 'named' can't be used together.", ctx.context)
-        return ret
-    elif named:
-        # TODO: Fill in namedtuple fields/types
-        row_arg = ctx.api.named_generic_type('typing.NamedTuple', [])
-    elif flat:
-        if len(ctx.args[0]) > 1:
-            ctx.api.fail("'flat' is not valid when values_list is called with more than one field.", ctx.context)
-            return ret
-        if use_strict_types:
-            row_arg = field_types[field_names[0]]
-        else:
-            row_arg = any_type
-    else:
-        if use_strict_types:
-            args = [
-                field_types[field_name]
-                for field_name in field_names
-            ]
-        else:
-            args = [any_type]
-        row_arg = ctx.api.named_generic_type('builtins.tuple', args)
-
-    new_type_args = [model_arg, row_arg]
-    return helpers.reparametrize_instance(ret, new_type_args)
 
 
 class DjangoPlugin(Plugin):
