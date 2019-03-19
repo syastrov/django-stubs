@@ -300,3 +300,8 @@ def get_assigned_value_for_class(type_info: TypeInfo, name: str) -> Optional[Exp
         if isinstance(lvalue, NameExpr) and lvalue.name == name:
             return rvalue
     return None
+
+
+def is_field_nullable(model: TypeInfo, field_name: str) -> bool:
+    return get_fields_metadata(model).get(field_name, {}).get('null', False)
+

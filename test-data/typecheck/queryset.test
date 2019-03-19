@@ -1,3 +1,37 @@
+[CASE test_queryset_values_list]
+from django.db import models
+
+class Blog(models.Model):
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField()
+
+class Entry(models.Model):
+    blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name="entries")
+    title = models.CharField(max_length=100)
+
+class BlogChild(Blog):
+    child_field = models.CharField(max_length=100)
+
+# Test lookup validation
+Blog.objects.values_list('id', 'invalid_lookup') # E: "invalid_lookup" is not a valid lookup on model Blog
+Blog.objects.values_list('entries_id', flat=True) # E: "entries_id" is not a valid lookup on model Blog
+
+reveal_type(Entry.objects.values_list('blog', flat=True).get()) # E: Revealed type is 'builtins.int*'
+reveal_type(Entry.objects.values_list('blog_id', flat=True).get()) # E: Revealed type is 'builtins.int*'
+
+reveal_type(Blog.objects.values_list('entries', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
+reveal_type(Blog.objects.values_list('entries__title', flat=True).get()) # E: Revealed type is 'builtins.str*'
+Blog.objects.values_list('entries__foo', flat=True).get() # E: "foo" is not a valid lookup on model Entry
+
+# Test values_list return type
+reveal_type(Blog.objects.values_list('id', 'created_at').get()) # E: Revealed type is 'builtins.tuple*[builtins.object, datetime.datetime]'
+
+Blog.objects.values_list('id', flat=True, named=True) # E: 'flat' and 'named' can't be used together.
+Blog.objects.values_list('id', 'created_at', flat=True) # E: 'flat' is not valid when values_list is called with more than one field.
+
+# Inheritance
+reveal_type(BlogChild.objects.values_list('id', 'created_at', 'child_field').get()) # E: Revealed type is 'builtins.tuple*[builtins.object, datetime.datetime, builtins.str]'
+
 [CASE test_queryset]
 from django.db import models
 
@@ -17,21 +51,6 @@ class Entry(models.Model):
 # Test that second type argument gets filled automatically
 blog_qs: models.QuerySet[Blog]
 reveal_type(blog_qs) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog, main.Blog]'
-
-
-# Test lookup validation
-Blog.objects.values_list('id', 'invalid_lookup') # E: "invalid_lookup" is not a valid lookup on model Blog
-
-# Test lookups with related_names
-reveal_type(Blog.objects.values_list('entries', flat=True).get()) # E: Revealed type is 'builtins.int'
-reveal_type(Blog.objects.values_list('entries_id', flat=True).get()) # E: Revealed type is 'builtins.int'
-# reveal_type(Blog.objects.values_list('entries', flat=True).get()) # E: Revealed type is 'builtins.str'
-
-# Test values_list return type
-reveal_type(Blog.objects.values_list('id', 'created_at').get()) # E: Revealed type is 'builtins.tuple*[builtins.object, datetime.datetime]'
-
-Blog.objects.values_list('id', flat=True, named=True) # E: 'flat' and 'named' can't be used together.
-Blog.objects.values_list('id', 'created_at', flat=True) # E: 'flat' is not valid when values_list is called with more than one field.
 
 reveal_type(Blog.objects.in_bulk([1])) # E: Revealed type is 'builtins.dict[Any, main.Blog*]'
 reveal_type(Blog.objects.in_bulk()) # E: Revealed type is 'builtins.dict[Any, main.Blog*]'

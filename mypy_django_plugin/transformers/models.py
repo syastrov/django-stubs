@@ -193,7 +193,9 @@ class AddRelatedManagers(ModelClassInitializer):
                             if typ is None:
                                 return None
                             self.add_new_node_to_model_class(related_name, typ)
-                            helpers.get_lookups_metadata(self.model_classdef.info)[related_query_name] = {}
+                            helpers.get_lookups_metadata(self.model_classdef.info)[related_query_name] = {
+                                'related_name': related_name
+                            }
 
 
 def iter_over_classdefs(module_file: MypyFile) -> Iterator[ClassDef]:
