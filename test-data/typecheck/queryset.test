@@ -7,6 +7,7 @@ class Blog(models.Model):
 
 class Entry(models.Model):
     blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name="entries")
+    nullable_blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name="+", null=True)
     title = models.CharField(max_length=100)
 
 class BlogChild(Blog):
@@ -15,8 +16,11 @@ class BlogChild(Blog):
 # Test lookup validation
 Blog.objects.values_list('id', 'invalid_lookup') # E: "invalid_lookup" is not a valid lookup on model Blog
 Blog.objects.values_list('entries_id', flat=True) # E: "entries_id" is not a valid lookup on model Blog
+Blog.objects.values_list('+', flat=True) # E: "+" is not a valid lookup on model Blog
 
 reveal_type(Entry.objects.values_list('blog', flat=True).get()) # E: Revealed type is 'builtins.int*'
+reveal_type(Entry.objects.values_list('blog__id', flat=True).get()) # E: Revealed type is 'builtins.int*'
+reveal_type(Entry.objects.values_list('nullable_blog__id', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
 reveal_type(Entry.objects.values_list('blog_id', flat=True).get()) # E: Revealed type is 'builtins.int*'
 
 reveal_type(Blog.objects.values_list('entries', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'

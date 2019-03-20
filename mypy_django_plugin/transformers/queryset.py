@@ -163,10 +163,14 @@ def resolve_model_lookup(api: CheckerPluginInterface, context: Context, model_ty
     if helpers.has_any_of_bases(field_node_type.type, (helpers.FOREIGN_KEY_FULLNAME,
                                                        helpers.ONETOONE_FIELD_FULLNAME)):
         field_type = helpers.extract_field_getter_type(field_node_type)
-        is_nullable = helpers.is_field_nullable(model_type_info, field_name)
+        is_nullable = helpers.is_optional(field_type)
+        if is_nullable:
+            field_type = helpers.make_required(field_type)
 
         if isinstance(field_type, Instance):
             return RelatedModelNode(typ=field_type, is_nullable=is_nullable)
+        else:
+            raise Exception(f"Not an instance for field {field_type} lookup {lookup}")
     field_type = helpers.extract_field_getter_type(field_node_type)
     if field_type:
         # If it's a field, return the type of the Field's getter
