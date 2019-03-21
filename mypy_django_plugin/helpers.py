@@ -305,3 +305,8 @@ def get_assigned_value_for_class(type_info: TypeInfo, name: str) -> Optional[Exp
 def is_field_nullable(model: TypeInfo, field_name: str) -> bool:
     return get_fields_metadata(model).get(field_name, {}).get('null', False)
 
+
+def is_foreign_key(t: Type) -> bool:
+    if not isinstance(t, Instance):
+        return False
+    return has_any_of_bases(t.type, (FOREIGN_KEY_FULLNAME, ONETOONE_FIELD_FULLNAME))

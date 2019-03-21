@@ -98,6 +98,25 @@ reveal_type(named_values_list_qs.in_bulk()) # E: Revealed type is 'builtins.dict
 
 [out]
 
+[CASE test_queryset_values_list_custom_primary_key]
+from django.db import models
+
+class Blog(models.Model):
+    primary_uuid = models.UUIDField(primary_key=True)
+
+class Entry(models.Model):
+    blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name="entries")
+
+# RelatedModelNode
+reveal_type(Entry.objects.values_list('blog', flat=True).get()) # E: Revealed type is 'uuid.UUID*'
+# PrimitiveField? should be RelatedModelPK
+reveal_type(Entry.objects.values_list('blog_id', flat=True).get()) # E: Revealed type is 'uuid.UUID*'
+# Field
+reveal_type(Entry.objects.values_list('blog__pk', flat=True).get()) # E: Revealed type is 'uuid.UUID*'
+
+# No automatic ID field
+reveal_type(Entry.objects.values_list('blog__id', flat=True).get()) # E: Revealed type is 'Any'
+
 [CASE test_queryset_values_list]
 from django.db import models
 
@@ -108,10 +127,15 @@ class Blog(models.Model):
 class Entry(models.Model):
     blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name="entries")
     nullable_blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name="+", null=True)
+    blog_with_related_query_name = models.ForeignKey(Blog, on_delete=models.CASCADE, related_query_name="my_related_query_name")
     title = models.CharField(max_length=100)
 
 class BlogChild(Blog):
     child_field = models.CharField(max_length=100)
+
+# Emulate at type-check time the errors that Django reports
+Blog.objects.values_list('id', flat=True, named=True) # E: 'flat' and 'named' can't be used together.
+Blog.objects.values_list('id', 'created_at', flat=True) # E: 'flat' is not valid when values_list is called with more than one field.
 
 # values_list where parameter types are all known
 reveal_type(Blog.objects.values_list('id', 'created_at').get()) # E: Revealed type is 'builtins.tuple*[builtins.int, datetime.datetime]'
@@ -129,16 +153,18 @@ reveal_type(Entry.objects.values_list('blog__pk', flat=True).get()) # E: Reveale
 reveal_type(Entry.objects.values_list('blog_id', flat=True).get()) # E: Revealed type is 'builtins.int*'
 
 # Foreign key (nullable=True)
+reveal_type(Entry.objects.values_list('nullable_blog', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
+reveal_type(Entry.objects.values_list('nullable_blog_id', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
 reveal_type(Entry.objects.values_list('nullable_blog__id', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
+reveal_type(Entry.objects.values_list('nullable_blog__pk', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
 
 # Reverse relation of ForeignKey
 reveal_type(Blog.objects.values_list('entries', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
 reveal_type(Blog.objects.values_list('entries__id', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
 reveal_type(Blog.objects.values_list('entries__title', flat=True).get()) # E: Revealed type is 'Union[builtins.str, None]'
 
-# Inheritance
-reveal_type(BlogChild.objects.values_list('id', 'created_at', 'child_field').get()) # E: Revealed type is 'builtins.tuple*[builtins.int, datetime.datetime, builtins.str]'
+# Reverse relation of ForeignKey (with related_query_name set)
+reveal_type(Blog.objects.values_list('my_related_query_name__id', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
 
-# Emulate at type-check time the errors that Django reports
-Blog.objects.values_list('id', flat=True, named=True) # E: 'flat' and 'named' can't be used together.
-Blog.objects.values_list('id', 'created_at', flat=True) # E: 'flat' is not valid when values_list is called with more than one field.
+# Basic inheritance
+reveal_type(BlogChild.objects.values_list('id', 'created_at', 'child_field').get()) # E: Revealed type is 'builtins.tuple*[builtins.int, datetime.datetime, builtins.str]'
