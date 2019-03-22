@@ -10,7 +10,7 @@ from mypy_django_plugin import helpers
 from mypy_django_plugin.lookups import resolve_lookup, RelatedModelNode, LookupException
 
 
-def extract_proper_type_for_values_list(method_name: str, ctx: MethodContext) -> Type:
+def extract_proper_type_for_values_and_values_list(method_name: str, ctx: MethodContext) -> Type:
     api = cast(TypeChecker, ctx.api)
 
     object_type = ctx.type

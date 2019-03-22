@@ -73,30 +73,7 @@ def resolve_model_lookup(api: CheckerPluginInterface, model_type_info: TypeInfo,
                                                   is_nullable=False)
             return FieldNode(pk_type)
 
-    # TODO: Remove this lookup metadata shit.
-    #  Unfortunately, it will still be necessary to be able to find the related_query_name for reverse relations on models
-    #  Maybe that is possible to do in a pre-processing step
-    lookups_metadata = helpers.get_lookups_metadata(model_type_info)
-    lookup_metadata = lookups_metadata.get(lookup)
-
-    if lookup_metadata is None:
-        # If not found on current model, look in all bases for their lookup metadata
-        for base in model_type_info.mro:
-            lookups_metadata = helpers.get_lookups_metadata(base)
-            lookup_metadata = lookups_metadata.get(lookup)
-            if lookup_metadata:
-                break
-        if lookup_metadata is None:
-            # TODO: Make an option to enable warnings about unknown lookups?
-            raise LookupException(f'"{lookup}" is not a valid lookup on model {model_type_info.name()}')
-
-    related_name = lookup_metadata.get('related_name', None)
-    if related_name:
-        # If the lookup is a related lookup, then look at the field specified by related_name.
-        # This is to support if related_query_name is set and differs from.
-        field_name = related_name
-    else:
-        field_name = lookup
+    field_name = get_actual_field_name_for_lookup_field(lookup, model_type_info)
 
     field_node = model_type_info.get(field_name)
     if not field_node:
@@ -146,3 +123,29 @@ def resolve_model_lookup(api: CheckerPluginInterface, model_type_info: TypeInfo,
             return RelatedModelNode(typ=related_manager_arg, is_nullable=True)
         raise LookupException(
             f'When resolving lookup "{lookup}", could not determine field type for {model_type_info.name()}.{field_name}')
+
+
+def get_actual_field_name_for_lookup_field(lookup: str, model_type_info: TypeInfo) -> str:
+    """Attempt to find out the real field name if this lookup is a related_query_name (for reverse relations).
+
+    If it's not, return the original lookup.
+    """
+    lookups_metadata = helpers.get_lookups_metadata(model_type_info)
+    lookup_metadata = lookups_metadata.get(lookup)
+    if lookup_metadata is None:
+        # If not found on current model, look in all bases for their lookup metadata
+        for base in model_type_info.mro:
+            lookups_metadata = helpers.get_lookups_metadata(base)
+            lookup_metadata = lookups_metadata.get(lookup)
+            if lookup_metadata:
+                break
+    if not lookup_metadata:
+        lookup_metadata = {}
+    related_name = lookup_metadata.get('related_query_name_target', None)
+    if related_name:
+        # If the lookup is a related lookup, then look at the field specified by related_name.
+        # This is to support if related_query_name is set and differs from.
+        field_name = related_name
+    else:
+        field_name = lookup
+    return field_name

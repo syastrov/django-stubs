@@ -70,7 +70,6 @@ class SetIdAttrsForRelatedFields(ModelClassInitializer):
             node_name = lvalue.name + '_id'
             self.add_new_node_to_model_class(name=node_name,
                                              typ=self.api.builtin_type('builtins.int'))
-            helpers.get_lookups_metadata(self.model_classdef.info)[node_name] = {}
 
 
 class InjectAnyAsBaseForNestedMeta(ModelClassInitializer):
@@ -154,7 +153,6 @@ class AddIdAttributeIfPrimaryKeyTrueIsNotSet(ModelClassInitializer):
                 break
         else:
             self.add_new_node_to_model_class('id', self.api.builtin_type('builtins.object'))
-            helpers.get_lookups_metadata(self.model_classdef.info)['id'] = {}
 
 
 class AddRelatedManagers(ModelClassInitializer):
@@ -201,7 +199,7 @@ class AddRelatedManagers(ModelClassInitializer):
                             if related_query_name is not None:
                                 # Only create related_query_name if it is a string literal
                                 helpers.get_lookups_metadata(self.model_classdef.info)[related_query_name] = {
-                                    'related_name': related_name
+                                    'related_query_name_target': related_name
                                 }
 
 

@@ -24,7 +24,7 @@ from mypy_django_plugin.transformers.migrations import (
     determine_model_cls_from_string_for_migrations, get_string_value_from_expr,
 )
 from mypy_django_plugin.transformers.models import process_model_class
-from mypy_django_plugin.transformers.queryset import extract_proper_type_for_values_list
+from mypy_django_plugin.transformers.queryset import extract_proper_type_for_values_and_values_list
 from mypy_django_plugin.transformers.settings import (
     AddSettingValuesToDjangoConfObject, get_settings_metadata,
 )
@@ -323,7 +323,7 @@ class DjangoPlugin(Plugin):
         if method_name in ('values', 'values_list'):
             sym = self.lookup_fully_qualified(class_name)
             if sym and isinstance(sym.node, TypeInfo) and sym.node.has_base(helpers.QUERYSET_CLASS_FULLNAME):
-                return partial(extract_proper_type_for_values_list, method_name)
+                return partial(extract_proper_type_for_values_and_values_list, method_name)
 
         if fullname in {'django.apps.registry.Apps.get_model',
                         'django.db.migrations.state.StateApps.get_model'}:
