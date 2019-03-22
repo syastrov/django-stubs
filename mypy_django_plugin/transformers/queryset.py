@@ -12,16 +12,12 @@ from mypy_django_plugin import helpers
 from mypy_django_plugin.transformers.fields import get_private_descriptor_type
 
 
-def extract_proper_type_for_values_list(ctx: MethodContext) -> Type:
-    # TODO: Support .values also
+def extract_proper_type_for_values_list(method_name: str, ctx: MethodContext) -> Type:
     cast(TypeChecker, ctx.api)
 
     object_type = ctx.type
     if not isinstance(object_type, Instance):
         return ctx.default_return_type
-
-    flat = helpers.parse_bool(helpers.get_argument_by_name(ctx, 'flat'))
-    named = helpers.parse_bool(helpers.get_argument_by_name(ctx, 'named'))
 
     ret = ctx.default_return_type
 
@@ -57,31 +53,39 @@ def extract_proper_type_for_values_list(ctx: MethodContext) -> Type:
             model_type_info = model_arg.type
             field_types = refine_lookup_types(ctx, field_types, model_type_info)
 
-    if named and flat:
-        ctx.api.fail("'flat' and 'named' can't be used together.", ctx.context)
-        return ret
-    elif named:
-        if fill_column_types:
-            row_arg = helpers.make_named_tuple(ctx.api, fields=field_types, name="Row")
-        else:
-            row_arg = helpers.make_named_tuple(ctx.api, fields=OrderedDict(), name="Row")
-    elif flat:
-        if len(ctx.args[0]) > 1:
-            ctx.api.fail("'flat' is not valid when values_list is called with more than one field.", ctx.context)
+    if method_name == 'values_list':
+        flat = helpers.parse_bool(helpers.get_argument_by_name(ctx, 'flat'))
+        named = helpers.parse_bool(helpers.get_argument_by_name(ctx, 'named'))
+
+        if named and flat:
+            ctx.api.fail("'flat' and 'named' can't be used together.", ctx.context)
             return ret
-        if fill_column_types:
-            row_arg = field_types[field_names[0]]
+        elif named:
+            if fill_column_types:
+                row_arg = helpers.make_named_tuple(ctx.api, fields=field_types, name="Row")
+            else:
+                row_arg = helpers.make_named_tuple(ctx.api, fields=OrderedDict(), name="Row")
+        elif flat:
+            if len(ctx.args[0]) > 1:
+                ctx.api.fail("'flat' is not valid when values_list is called with more than one field.", ctx.context)
+                return ret
+            if fill_column_types:
+                row_arg = field_types[field_names[0]]
+            else:
+                row_arg = any_type
         else:
-            row_arg = any_type
+            if fill_column_types:
+                args = [
+                    field_types[field_name]
+                    for field_name in field_names
+                ]
+            else:
+                args = [any_type]
+            row_arg = helpers.make_tuple(ctx.api, args)
+    elif method_name == 'values':
+        row_arg = helpers.make_typeddict(api=ctx.api, fields=field_types, required_keys=set())
     else:
-        if fill_column_types:
-            args = [
-                field_types[field_name]
-                for field_name in field_names
-            ]
-        else:
-            args = [any_type]
-        row_arg = helpers.make_tuple(ctx.api, args)
+        raise Exception(f"extract_proper_type_for_values_list doesn't support method {method_name}")
 
     new_type_args = [model_arg, row_arg]
     return helpers.reparametrize_instance(ret, new_type_args)

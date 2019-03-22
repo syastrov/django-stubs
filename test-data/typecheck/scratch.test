@@ -12,32 +12,24 @@ class Blog(models.Model):
     name = models.CharField(max_length=100)
     created_at = models.DateTimeField()
 
+row_named = Blog.objects.values_list('id', 'created_at', named=True).get()
+reveal_type(row_named.id) # E: Revealed type is 'builtins.int'
+reveal_type(row_named.created_at) # E: Revealed type is 'datetime.datetime'
+row_named.non_existent_field # E: "Row" has no attribute "non_existent_field"
+
+
 # When no fields are specified, fallback to Any
 row_named_no_fields = Blog.objects.values_list(named=True).get()
 reveal_type(row_named_no_fields) # E: Revealed type is 'Tuple[, fallback=typing.NamedTuple]'
 
 # Don't complain about access to any attribute for now
-reveal_type(row_named_no_fields.non_existant_field) # E: Revealed type is 'Any'
+reveal_type(row_named_no_fields.non_existent_field) # E: Revealed type is 'Any'
 
 # Unfortunately, allowing access to any attribute means that normal NamedTuple methods don't get correct types
 reveal_type(row_named_no_fields._asdict()) # E: Revealed type is 'Any'
 
-namedtuple_row_no_values_specified = Blog.objects.values_list(named=True).get()
-reveal_type(namedtuple_row_no_values_specified.created_at) # E: Revealed type is 'Any'
 
-namedtuple_row = Blog.objects.values_list('id', 'created_at', named=True).get()
-reveal_type(namedtuple_row.id) # E: Revealed type is 'builtins.int'
-reveal_type(namedtuple_row.created_at) # E: Revealed type is 'datetime.datetime'
-namedtuple_row.some_other_field # E: "Row" has no attribute "some_other_field"
-
-# TODO: Implement .values
-# dict_row = Blog.objects.values('id', 'created_at').get()
-# reveal_type(dict_row["id"]) # : Revealed type is 'builtins.int'
-# reveal_type(dict_row["created_at"]) # : Revealed type is 'datetime.datetime'
-
-# row = Blog.objects.values_list('id', 'created_at').get()
-# reveal_type(row[0]) # : Revealed type is 'builtins.int*'
-# reveal_type(row[1]) # : Revealed type is 'builtins.str'
-# reveal_type(row[2]) # : Revealed type is 'builtins.datetime'
-# reveal_type(Blog.objects.values_list('id', 'created_at', named=True).get()) # : Revealed type is 'builtins.namedtuple*[builtins.int, datetime.datetime]'
-# reveal_type(Blog.objects.values_list('id', 'created_at', named=True).get().created_at) # : Revealed type is 'builtins.str'
+dict_row = Blog.objects.values('id', 'created_at').get()
+reveal_type(dict_row["id"]) # E: Revealed type is 'builtins.int'
+reveal_type(dict_row["created_at"]) # E: Revealed type is 'datetime.datetime'
+dict_row["non_existent_field"] # E: TypedDict "object[Any]" has no key 'non_existent_field'

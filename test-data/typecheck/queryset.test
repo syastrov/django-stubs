@@ -175,3 +175,34 @@ reveal_type(Blog.objects.values_list('my_related_query_name__id', flat=True).get
 
 # Basic inheritance
 reveal_type(BlogChild.objects.values_list('id', 'created_at', 'child_field').get()) # E: Revealed type is 'Tuple[builtins.int, datetime.datetime, builtins.str]'
+
+
+
+[CASE test_queryset_values_list_and_values_behavior_with_no_fields_specified_and_accessing_unknown_attributes]
+from django.db import models
+
+class Blog(models.Model):
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField()
+
+row_named = Blog.objects.values_list('id', 'created_at', named=True).get()
+reveal_type(row_named.id) # E: Revealed type is 'builtins.int'
+reveal_type(row_named.created_at) # E: Revealed type is 'datetime.datetime'
+row_named.non_existent_field # E: "Row" has no attribute "non_existent_field"
+
+
+# When no fields are specified, fallback to Any
+row_named_no_fields = Blog.objects.values_list(named=True).get()
+reveal_type(row_named_no_fields) # E: Revealed type is 'Tuple[, fallback=typing.NamedTuple]'
+
+# Don't complain about access to any attribute for now
+reveal_type(row_named_no_fields.non_existent_field) # E: Revealed type is 'Any'
+
+# Unfortunately, allowing access to any attribute means that normal NamedTuple methods don't get correct types
+reveal_type(row_named_no_fields._asdict()) # E: Revealed type is 'Any'
+
+
+dict_row = Blog.objects.values('id', 'created_at').get()
+reveal_type(dict_row["id"]) # E: Revealed type is 'builtins.int'
+reveal_type(dict_row["created_at"]) # E: Revealed type is 'datetime.datetime'
+dict_row["non_existent_field"] # E: TypedDict "object[Any]" has no key 'non_existent_field'

@@ -320,10 +320,10 @@ class DjangoPlugin(Plugin):
             if sym and isinstance(sym.node, TypeInfo) and sym.node.has_base(helpers.FORM_MIXIN_CLASS_FULLNAME):
                 return extract_proper_type_for_get_form
 
-        if method_name == 'values_list':
+        if method_name in ('values', 'values_list'):
             sym = self.lookup_fully_qualified(class_name)
             if sym and isinstance(sym.node, TypeInfo) and sym.node.has_base(helpers.QUERYSET_CLASS_FULLNAME):
-                return extract_proper_type_for_values_list
+                return partial(extract_proper_type_for_values_list, method_name)
 
         if fullname in {'django.apps.registry.Apps.get_model',
                         'django.db.migrations.state.StateApps.get_model'}:
