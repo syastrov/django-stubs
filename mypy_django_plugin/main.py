@@ -8,7 +8,7 @@ from mypy.nodes import MemberExpr, NameExpr, TypeInfo
 from mypy.options import Options
 from mypy.plugin import (
     AttributeContext, ClassDefContext, FunctionContext, MethodContext, Plugin,
-    AnalyzeTypeContext)
+    AnalyzeTypeContext, DynamicClassDefContext, MethodSigContext)
 from mypy.types import (
     AnyType, CallableType, Instance, NoneTyp, Type, TypeOfAny, TypeType, UnionType,
 )

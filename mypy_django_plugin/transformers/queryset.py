@@ -1,9 +1,12 @@
-import dataclasses
-from typing import Union, Dict, Optional, NamedTuple, List
+from collections import OrderedDict
 
+import dataclasses
+from typing import Union, Dict, List, cast
+
+from mypy.checker import TypeChecker
 from mypy.nodes import StrExpr, TypeInfo, Context
-from mypy.plugin import MethodContext, CheckerPluginInterface
-from mypy.types import Type, Instance, AnyType, TypeOfAny
+from mypy.plugin import MethodContext, CheckerPluginInterface, MethodSigContext
+from mypy.types import Type, Instance, AnyType, TypeOfAny, CallableType
 
 from mypy_django_plugin import helpers
 from mypy_django_plugin.transformers.fields import get_private_descriptor_type
@@ -11,6 +14,7 @@ from mypy_django_plugin.transformers.fields import get_private_descriptor_type
 
 def extract_proper_type_for_values_list(ctx: MethodContext) -> Type:
     # TODO: Support .values also
+    cast(TypeChecker, ctx.api)
 
     object_type = ctx.type
     if not isinstance(object_type, Instance):
@@ -26,13 +30,15 @@ def extract_proper_type_for_values_list(ctx: MethodContext) -> Type:
 
     model_arg: Union[AnyType, Type] = ret.args[0] if len(ret.args) > 0 else any_type
 
-    # TODO: Base on config setting
-    use_strict_types = True
-
     fill_column_types = True
 
-    field_names = []
-    field_types = {}
+    field_names: List[str] = []
+    field_types: OrderedDict[str, Type] = OrderedDict()
+
+    if len(fields_arg_expr) == 0:
+        # values_list/values with no args is not yet supported, so default to Any types for field types
+        # TODO: It should include all model fields, "extra" fields and "annotated" fields
+        fill_column_types = False
 
     # Figure out each field name passed to fields
     for field_expr in fields_arg_expr:
@@ -46,7 +52,7 @@ def extract_proper_type_for_values_list(ctx: MethodContext) -> Type:
         # Default to any type
         field_types[field_name] = any_type
 
-    if use_strict_types and fill_column_types:
+    if fill_column_types:
         if isinstance(model_arg, Instance):
             model_type_info = model_arg.type
             field_types = refine_lookup_types(ctx, field_types, model_type_info)
@@ -55,8 +61,10 @@ def extract_proper_type_for_values_list(ctx: MethodContext) -> Type:
         ctx.api.fail("'flat' and 'named' can't be used together.", ctx.context)
         return ret
     elif named:
-        # TODO: Fill in namedtuple fields/types
-        row_arg = ctx.api.named_generic_type('typing.NamedTuple', [])
+        if fill_column_types:
+            row_arg = helpers.make_named_tuple(ctx.api, fields=field_types, name="Row")
+        else:
+            row_arg = helpers.make_named_tuple(ctx.api, fields=OrderedDict(), name="Row")
     elif flat:
         if len(ctx.args[0]) > 1:
             ctx.api.fail("'flat' is not valid when values_list is called with more than one field.", ctx.context)
@@ -73,7 +81,7 @@ def extract_proper_type_for_values_list(ctx: MethodContext) -> Type:
             ]
         else:
             args = [any_type]
-        row_arg = ctx.api.named_generic_type('builtins.tuple', args)
+        row_arg = helpers.make_tuple(ctx.api, args)
 
     new_type_args = [model_arg, row_arg]
     return helpers.reparametrize_instance(ret, new_type_args)

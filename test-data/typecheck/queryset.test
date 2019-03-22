@@ -25,8 +25,8 @@ reveal_type(Blog.objects.in_bulk(['beatles_blog'], field_name='name')) # E: Reve
 # When ANDing QuerySets, the left-side's _Row parameter is used
 reveal_type(Blog.objects.all() & Blog.objects.values()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, main.Blog*]'
 reveal_type(Blog.objects.values() & Blog.objects.values()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, builtins.dict*[builtins.str, Any]]'
-reveal_type(Blog.objects.values_list('id', 'name') & Blog.objects.values()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, builtins.tuple*[builtins.int, builtins.str]]'
-reveal_type(Blog.objects.values_list('id', 'name', named=True) & Blog.objects.values()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, typing.NamedTuple*]'
+reveal_type(Blog.objects.values_list('id', 'name') & Blog.objects.values()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, Tuple[builtins.int, builtins.str]]'
+reveal_type(Blog.objects.values_list('id', 'name', named=True) & Blog.objects.values()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, Tuple[builtins.int, builtins.str, fallback=main.Row]]'
 reveal_type(Blog.objects.values_list('id', flat=True) & Blog.objects.values()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, builtins.int*]'
 
 # .dates / .datetimes
@@ -59,15 +59,15 @@ reveal_type(values_qs.in_bulk()) # E: Revealed type is 'builtins.dict[Any, main.
 
 
 values_list_qs = Blog.objects.values_list('id', 'name')
-reveal_type(values_list_qs) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, builtins.tuple[builtins.int, builtins.str]]'
-reveal_type(values_list_qs.all()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, builtins.tuple*[builtins.int, builtins.str]]'
-reveal_type(values_list_qs.get(id=1)) # E: Revealed type is 'builtins.tuple*[builtins.int, builtins.str]'
-reveal_type(iter(values_list_qs)) # E: Revealed type is 'typing.Iterator[builtins.tuple*[builtins.int, builtins.str]]'
-reveal_type(values_list_qs.iterator()) # E: Revealed type is 'typing.Iterator[builtins.tuple*[builtins.int, builtins.str]]'
-reveal_type(values_list_qs.first()) # E: Revealed type is 'Union[builtins.tuple*[builtins.int, builtins.str], None]'
-reveal_type(values_list_qs.earliest()) # E: Revealed type is 'builtins.tuple*[builtins.int, builtins.str]'
-reveal_type(values_list_qs[0]) # E: Revealed type is 'builtins.tuple*[builtins.int, builtins.str]'
-reveal_type(values_list_qs[:9]) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, builtins.tuple*[builtins.int, builtins.str]]'
+reveal_type(values_list_qs) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, Tuple[builtins.int, builtins.str]]'
+reveal_type(values_list_qs.all()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, Tuple[builtins.int, builtins.str]]'
+reveal_type(values_list_qs.get(id=1)) # E: Revealed type is 'Tuple[builtins.int, builtins.str]'
+reveal_type(iter(values_list_qs)) # E: Revealed type is 'typing.Iterator[Tuple[builtins.int, builtins.str]]'
+reveal_type(values_list_qs.iterator()) # E: Revealed type is 'typing.Iterator[Tuple[builtins.int, builtins.str]]'
+reveal_type(values_list_qs.first()) # E: Revealed type is 'Union[Tuple[builtins.int, builtins.str], None]'
+reveal_type(values_list_qs.earliest()) # E: Revealed type is 'Tuple[builtins.int, builtins.str]'
+reveal_type(values_list_qs[0]) # E: Revealed type is 'Tuple[builtins.int, builtins.str]'
+reveal_type(values_list_qs[:9]) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, Tuple[builtins.int, builtins.str]]'
 reveal_type(values_list_qs.in_bulk()) # E: Revealed type is 'builtins.dict[Any, main.Blog*]'
 
 
@@ -85,15 +85,15 @@ reveal_type(flat_values_list_qs.in_bulk()) # E: Revealed type is 'builtins.dict[
 
 
 named_values_list_qs = Blog.objects.values_list('id', named=True)
-reveal_type(named_values_list_qs) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, typing.NamedTuple]'
-reveal_type(named_values_list_qs.all()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, typing.NamedTuple*]'
-reveal_type(named_values_list_qs.get(id=1)) # E: Revealed type is 'typing.NamedTuple*'
-reveal_type(iter(named_values_list_qs)) # E: Revealed type is 'typing.Iterator[typing.NamedTuple*]'
-reveal_type(named_values_list_qs.iterator()) # E: Revealed type is 'typing.Iterator[typing.NamedTuple*]'
-reveal_type(named_values_list_qs.first()) # E: Revealed type is 'Union[typing.NamedTuple*, None]'
-reveal_type(named_values_list_qs.earliest()) # E: Revealed type is 'typing.NamedTuple*'
-reveal_type(named_values_list_qs[0]) # E: Revealed type is 'typing.NamedTuple*'
-reveal_type(named_values_list_qs[:9]) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, typing.NamedTuple*]'
+reveal_type(named_values_list_qs) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, Tuple[builtins.int, fallback=main.Row1]]'
+reveal_type(named_values_list_qs.all()) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, Tuple[builtins.int, fallback=main.Row1]]'
+reveal_type(named_values_list_qs.get(id=1)) # E: Revealed type is 'Tuple[builtins.int, fallback=main.Row1]'
+reveal_type(iter(named_values_list_qs)) # E: Revealed type is 'typing.Iterator[Tuple[builtins.int, fallback=main.Row1]]'
+reveal_type(named_values_list_qs.iterator()) # E: Revealed type is 'typing.Iterator[Tuple[builtins.int, fallback=main.Row1]]'
+reveal_type(named_values_list_qs.first()) # E: Revealed type is 'Union[Tuple[builtins.int, fallback=main.Row1], None]'
+reveal_type(named_values_list_qs.earliest()) # E: Revealed type is 'Tuple[builtins.int, fallback=main.Row1]'
+reveal_type(named_values_list_qs[0]) # E: Revealed type is 'Tuple[builtins.int, fallback=main.Row1]'
+reveal_type(named_values_list_qs[:9]) # E: Revealed type is 'django.db.models.query.QuerySet[main.Blog*, Tuple[builtins.int, fallback=main.Row1]]'
 reveal_type(named_values_list_qs.in_bulk()) # E: Revealed type is 'builtins.dict[Any, main.Blog*]'
 
 [out]
@@ -138,10 +138,17 @@ Blog.objects.values_list('id', flat=True, named=True) # E: 'flat' and 'named' ca
 Blog.objects.values_list('id', 'created_at', flat=True) # E: 'flat' is not valid when values_list is called with more than one field.
 
 # values_list where parameter types are all known
-reveal_type(Blog.objects.values_list('id', 'created_at').get()) # E: Revealed type is 'builtins.tuple*[builtins.int, datetime.datetime]'
+reveal_type(Blog.objects.values_list('id', 'created_at').get()) # E: Revealed type is 'Tuple[builtins.int, datetime.datetime]'
+tup = Blog.objects.values_list('id', 'created_at').get()
+reveal_type(tup[0]) # E: Revealed type is 'builtins.int'
+reveal_type(tup[1]) # E: Revealed type is 'datetime.datetime'
+tup[2] # E: Tuple index out of range
+
+# values_list returning namedtuple
+reveal_type(Blog.objects.values_list('id', 'created_at', named=True).get()) # E: Revealed type is 'Tuple[builtins.int, datetime.datetime, fallback=main.Row]'
 
 # Invalid lookups produce Any type rather than giving errors.
-reveal_type(Blog.objects.values_list('id', 'invalid_lookup').get()) # E: Revealed type is 'builtins.tuple*[builtins.int, Any]'
+reveal_type(Blog.objects.values_list('id', 'invalid_lookup').get()) # E: Revealed type is 'Tuple[builtins.int, Any]'
 reveal_type(Blog.objects.values_list('entries_id', flat=True).get()) # E: Revealed type is 'Any'
 reveal_type(Blog.objects.values_list('entries__foo', flat=True).get()) # E: Revealed type is 'Any'
 reveal_type(Blog.objects.values_list('+', flat=True).get()) # E: Revealed type is 'Any'
@@ -167,4 +174,4 @@ reveal_type(Blog.objects.values_list('entries__title', flat=True).get()) # E: Re
 reveal_type(Blog.objects.values_list('my_related_query_name__id', flat=True).get()) # E: Revealed type is 'Union[builtins.int, None]'
 
 # Basic inheritance
-reveal_type(BlogChild.objects.values_list('id', 'created_at', 'child_field').get()) # E: Revealed type is 'builtins.tuple*[builtins.int, datetime.datetime, builtins.str]'
+reveal_type(BlogChild.objects.values_list('id', 'created_at', 'child_field').get()) # E: Revealed type is 'Tuple[builtins.int, datetime.datetime, builtins.str]'
