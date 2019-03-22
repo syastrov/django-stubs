@@ -81,7 +81,10 @@ def extract_proper_type_for_values_list(method_name: str, ctx: MethodContext) ->
                 args = [any_type]
             row_arg = helpers.make_tuple(api, fields=args)
     elif method_name == 'values':
-        row_arg = helpers.make_typeddict(api, fields=field_types, required_keys=set())
+        if fill_field_types:
+            row_arg = helpers.make_typeddict(api, fields=field_types, required_keys=set())
+        else:
+            return ctx.default_return_type
     else:
         raise Exception(f"extract_proper_type_for_values_list doesn't support method {method_name}")
 

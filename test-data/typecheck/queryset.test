@@ -206,3 +206,8 @@ dict_row = Blog.objects.values('id', 'created_at').get()
 reveal_type(dict_row["id"]) # E: Revealed type is 'builtins.int'
 reveal_type(dict_row["created_at"]) # E: Revealed type is 'datetime.datetime'
 dict_row["non_existent_field"] # E: TypedDict "object[Any]" has no key 'non_existent_field'
+
+
+row_dict_no_fields = Blog.objects.values().get()
+reveal_type(row_dict_no_fields) # E: Revealed type is 'builtins.dict*[builtins.str, Any]'
+reveal_type(row_dict_no_fields["non_existent_field"]) # E: Revealed type is 'Any'
