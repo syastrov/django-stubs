@@ -35,7 +35,7 @@ IGNORED_ERRORS = {
         'undefined in superclass',
         'Argument after ** must be a mapping',
         'note:',
-        re.compile(r'Item "None" of "[a-zA-Z_ ,\[\]]+" has no attribute'),
+        re.compile(r'Item "None" of "[a-zA-Z_ ,()\[\]]+" has no attribute'),
         '"Callable[..., None]" has no attribute',
         'does not return a value',
         'has no attribute "alternatives"',
