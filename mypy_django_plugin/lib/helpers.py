@@ -220,10 +220,13 @@ def get_current_module(api: TypeChecker) -> MypyFile:
     return current_module
 
 
-def make_oneoff_named_tuple(api: TypeChecker, name: str, fields: 'OrderedDict[str, MypyType]') -> TupleType:
+def make_oneoff_named_tuple(api: TypeChecker, name: str, fields: 'OrderedDict[str, MypyType]',
+                            extra_bases: Optional[List[Instance]] = None) -> TupleType:
     current_module = get_current_module(api)
+    if extra_bases is None:
+        extra_bases = []
     namedtuple_info = add_new_class_for_module(current_module, name,
-                                               bases=[api.named_generic_type('typing.NamedTuple', [])],
+                                               bases=[api.named_generic_type('typing.NamedTuple', [])] + extra_bases,
                                                fields=fields)
     return TupleType(list(fields.values()), fallback=Instance(namedtuple_info, []))
 

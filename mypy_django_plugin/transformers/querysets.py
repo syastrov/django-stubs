@@ -17,7 +17,9 @@ from mypy_django_plugin.django.context import (
 )
 from mypy_django_plugin.lib import fullnames, helpers
 from mypy_django_plugin.lib.constants import ANNOTATED_SUFFIX
-from mypy_django_plugin.lib.fullnames import VALUES_QUERYSET_CLASS_FULLNAME
+from mypy_django_plugin.lib.fullnames import (
+    ANY_ATTR_ALLOWED_CLASS_FULLNAME, VALUES_QUERYSET_CLASS_FULLNAME,
+)
 from mypy_django_plugin.lib.helpers import (
     add_new_class_for_module, is_annotated_model_fullname,
 )
@@ -83,19 +85,24 @@ def get_values_list_row_type(ctx: MethodContext, django_context: DjangoContext, 
             return lookup_type
         elif named:
             column_types: 'OrderedDict[str, MypyType]' = OrderedDict()
-            if is_annotated:
-                return helpers.make_oneoff_named_tuple(typechecker_api, 'Row', column_types)
             for field in django_context.get_model_fields(model_cls):
                 column_type = django_context.get_field_get_type(typechecker_api, field,
                                                                 method='values_list')
                 column_types[field.attname] = column_type
-            return helpers.make_oneoff_named_tuple(typechecker_api, 'Row', column_types)
+            if is_annotated:
+                # Return a NamedTuple with a fallback so that it's possible to access any field
+                return helpers.make_oneoff_named_tuple(typechecker_api, 'Row', column_types, extra_bases=[
+                    typechecker_api.named_generic_type(ANY_ATTR_ALLOWED_CLASS_FULLNAME, [])
+                ])
+            else:
+                return helpers.make_oneoff_named_tuple(typechecker_api, 'Row', column_types)
         else:
             # flat=False, named=False, all fields
+            if is_annotated:
+                return typechecker_api.named_generic_type('builtins.tuple', [AnyType(TypeOfAny.special_form)])
             field_lookups = []
-            if not is_annotated:
-                for field in django_context.get_model_fields(model_cls):
-                    field_lookups.append(field.attname)
+            for field in django_context.get_model_fields(model_cls):
+                field_lookups.append(field.attname)
 
     if len(field_lookups) > 1 and flat:
         typechecker_api.fail("'flat' is not valid when 'values_list' is called with more than one field", ctx.context)
@@ -177,26 +184,35 @@ def extract_proper_type_queryset_annotate(ctx: MethodContext, django_context: Dj
 
     # If already existing annotated type for model exists, reuse it
     api: CheckerPluginInterface = ctx.api
-    annotated_typeinfo = helpers.lookup_fully_qualified_typeinfo(cast(TypeChecker, api),
-                                                                 model_module_name + "." + type_name)
-    if annotated_typeinfo is None:
-        model_module_file = api.modules[model_module_name]  # type: ignore
-        any_attr_allowed_type = api.named_generic_type('django._AnyAttrAllowed', [])
+    if model_type.type.has_base(ANY_ATTR_ALLOWED_CLASS_FULLNAME):
+        annotated_type = model_type
+    else:
+        annotated_typeinfo = helpers.lookup_fully_qualified_typeinfo(cast(TypeChecker, api),
+                                                                     model_module_name + "." + type_name)
+        if annotated_typeinfo is None:
+            model_module_file = api.modules[model_module_name]  # type: ignore
+            annotated_model_type = api.named_generic_type(ANY_ATTR_ALLOWED_CLASS_FULLNAME, [])
 
-        # Create a new class in the same module as the model, with the same name as the model but with a suffix
-        # The class inherits from the model and an internal class which allows get/set of any attribute.
-        # Essentially, this is a way of making an "intersection" type between the two types.
-        annotated_typeinfo = add_new_class_for_module(model_module_file, type_name,
-                                                      bases=[model_type, any_attr_allowed_type, ], )
-    annotated_type = Instance(annotated_typeinfo, [])
+            # Create a new class in the same module as the model, with the same name as the model but with a suffix
+            # The class inherits from the model and an internal class which allows get/set of any attribute.
+            # Essentially, this is a way of making an "intersection" type between the two types.
+            annotated_typeinfo = add_new_class_for_module(model_module_file, type_name,
+                                                          bases=[model_type, annotated_model_type, ], )
+        annotated_type = Instance(annotated_typeinfo, [])
     if ctx.type.type.has_base(VALUES_QUERYSET_CLASS_FULLNAME):
         original_row_type: MypyType = ctx.default_return_type.args[1]
-        row_type: MypyType = AnyType(TypeOfAny.from_omitted_generics)
+        row_type: MypyType = original_row_type
         if isinstance(original_row_type, TypedDictType):
             row_type = api.named_generic_type('builtins.dict', [api.named_generic_type('builtins.str', []),
                                                                 AnyType(TypeOfAny.from_omitted_generics)])
         elif isinstance(original_row_type, TupleType):
-            row_type = api.named_generic_type('builtins.tuple', [AnyType(TypeOfAny.from_omitted_generics)])
+            fallback: Instance = original_row_type.partial_fallback
+            if fallback is not None and fallback.type.has_base('typing.NamedTuple'):
+                # TODO: Use a NamedTuple which contains the known fields, but also
+                #  falls back to allowing any attribute access.
+                row_type = AnyType(TypeOfAny.implementation_artifact)
+            else:
+                row_type = api.named_generic_type('builtins.tuple', [AnyType(TypeOfAny.from_omitted_generics)])
         return helpers.reparametrize_instance(ctx.default_return_type,
                                               [annotated_type, row_type])
     else:
@@ -226,6 +242,7 @@ def extract_proper_type_queryset_values(ctx: MethodContext, django_context: Djan
     if model_cls is None:
         return ctx.default_return_type
 
+    model_type.type
     if is_annotated_model_fullname(model_type.type.fullname):
         return ctx.default_return_type
 
